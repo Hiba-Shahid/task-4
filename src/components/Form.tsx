@@ -23,7 +23,7 @@ const Form = () => {
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <div className="mb-3">
-        <label htmlFor="name" className="">
+        <label htmlFor="name" className="form-label">
           Name
         </label>
         <input
