@@ -10,7 +10,6 @@ const ProductList = ({category}: {category: string}) => {
     }, [category]);
   return (
     <div>
-      ProductList
     </div>
   )
 }
