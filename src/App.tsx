@@ -1,41 +1,72 @@
-import React from 'react'
-import axios  from 'axios'
-import { useState, useEffect} from 'react';
-import { AxiosError } from 'axios'
+import React from "react";
+import axios, { CanceledError } from "axios";
+import { useState, useEffect } from "react";
+import { AxiosError } from "axios";
 
-interface User{
+interface User {
   id: number;
   name: string;
 }
 
-function App () {
-  const [users,setUsers] = useState<User[]>([]);
-  const [error , setError] = useState ('');
+function App() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [error, setError] = useState("");
+  const [isLoading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try{
-        const res = await axios
-      .get<User[]>('https://jsonplaceholder.typicode.com/x/users')
-      setUsers(res.data);
-      }
-      catch(err){
-        setError((err as AxiosError).message);
-      }
-    }
-    fetchUsers();
+    const controller = new AbortController();
+    setLoading(true);
+
     //get -> await promise -> res/ err
-    // .then(response => setUsers(response.data))
-    // .catch(err => setError(err.message));
-  },[])
+    axios
+      .get<User[]>("https://jsonplaceholder.typicode.com/users", {
+        signal: controller.signal,
+      })
+      .then((response) => {
+        setUsers(response.data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (err instanceof CanceledError) return;
+        setError(err.message);
+        setLoading(false);
+      });
+    return () => controller.abort();
+  }, []);
+
+  const deleteUser = (user: User) => {
+    const originalUsers = [...users];
+    setUsers(users.filter (u => u.id !== user.id));
+
+    axios.delete('https://jsonplaceholder.typicode.com/xusers/' + user.id)
+    .catch(err => {
+      setError(err.message);
+      setUsers(originalUsers);
+    })
+  }
+
+  const addUser = () => {
+    const newUser = {id: 0, name: 'Hiba'};
+    setUsers([newUser, ...users]);
+
+    axios.post("https://jsonplaceholder.typicode.com/users", newUser)
+    .then(response => setUsers([response.data, ...users]));
+  }
   return (
-    <> 
-    {error && <p className='text-danger'>{error}</p>}
-    <ul>
-      {users.map(user => <li key={user.id}>{user.name}</li>)}
-    </ul>
+    <>
+      {error && <p className="text-danger">{error}</p>}
+      {isLoading && <div className="spinner-border"></div>}
+      <button className="btn btn-primary mb-3" onClick={addUser}>Add</button>
+      <ul className="list-group">
+        {users.map((user) => (
+          <li key={user.id} className="list-group-item d-flex justify-content-between">
+            {user.name}
+            <button className="btn btn-outline-danger" onClick={() => deleteUser(user)}>Delete</button>
+          </li>
+        ))}
+      </ul>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
