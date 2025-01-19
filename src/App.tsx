@@ -1,10 +1,7 @@
 import { useState, useEffect } from "react";
-import apiClient, {CanceledError} from "./services/api-client";
-
-interface User {
-  id: number;
-  name: string;
-}
+import { CanceledError } from "./services/api-client";
+import userService from "./services/user-service";
+import { User } from "./services/user-service";
 
 function App() {
   const [users, setUsers] = useState<User[]>([]);
@@ -12,14 +9,9 @@ function App() {
   const [isLoading, setLoading] = useState(false);
 
   useEffect(() => {
-    const controller = new AbortController();
     setLoading(true);
-
-    //get -> await promise -> res/ err
-    apiClient
-      .get<User[]>("https://jsonplaceholder.typicode.com/users", {
-        signal: controller.signal,
-      })
+    const { request, cancel } = userService.getAllUsers();
+    request
       .then((response) => {
         setUsers(response.data);
         setLoading(false);
@@ -29,56 +21,70 @@ function App() {
         setError(err.message);
         setLoading(false);
       });
-    return () => controller.abort();
+    return () => cancel();
   }, []);
 
   const deleteUser = (user: User) => {
     const originalUsers = [...users];
-    setUsers(users.filter (u => u.id !== user.id));
+    setUsers(users.filter((u) => u.id !== user.id));
 
-    apiClient.delete('/users/' + user.id)
-    .catch(err => {
-      setError(err.message);
-      setUsers(originalUsers);
-    })
-  }
-
-  const addUser = () => {
-    const originalUsers = [...users];
-    const newUser = {id: 0, name: 'Hiba'};
-    setUsers([newUser, ...users]);
-
-    apiClient.post("/users/", newUser)
-    .then(({data: savedUser}) => setUsers([savedUser, ...users]))
-    .catch(err => {
+    userService.deleteUser(user.id).catch((err) => {
       setError(err.message);
       setUsers(originalUsers);
     });
-  }
+  };
+
+  const addUser = () => {
+    const originalUsers = [...users];
+    const newUser = { id: 0, name: "Hiba" };
+    setUsers([newUser, ...users]);
+
+    userService
+      .createUser(newUser)
+      .then(({ data: savedUser }) => setUsers([savedUser, ...users]))
+      .catch((err) => {
+        setError(err.message);
+        setUsers(originalUsers);
+      });
+  };
 
   const updateUser = (user: User) => {
     const originalUsers = [...users];
-      const updatedUser = {...user, name: user.name + '!'};
-      setUsers(users.map(u => u.id === user.id ? updatedUser : u));
+    const updatedUser = { ...user, name: user.name + "!" };
+    setUsers(users.map((u) => (u.id === user.id ? updatedUser : u)));
 
-      apiClient.patch('/users/' + user.id, updatedUser)
-      .catch(err => {
-        setError(err.message);
-        setUsers(originalUsers);
-      })
-  }
-    return (
+    userService.updateUser(updatedUser).catch((err) => {
+      setError(err.message);
+      setUsers(originalUsers);
+    });
+  };
+  return (
     <>
       {error && <p className="text-danger">{error}</p>}
       {isLoading && <div className="spinner-border"></div>}
-      <button className="btn btn-primary mb-3" onClick={addUser}>Add</button>
+      <button className="btn btn-primary mb-3" onClick={addUser}>
+        Add
+      </button>
       <ul className="list-group">
         {users.map((user) => (
-          <li key={user.id} className="list-group-item d-flex justify-content-between">
+          <li
+            key={user.id}
+            className="list-group-item d-flex justify-content-between"
+          >
             {user.name}
             <div>
-            <button className="btn btn-outline-secondary mx-1" onClick={() => updateUser(user)}>Update</button>
-            <button className="btn btn-outline-danger" onClick={() => deleteUser(user)}>Delete</button>
+              <button
+                className="btn btn-outline-secondary mx-1"
+                onClick={() => updateUser(user)}
+              >
+                Update
+              </button>
+              <button
+                className="btn btn-outline-danger"
+                onClick={() => deleteUser(user)}
+              >
+                Delete
+              </button>
             </div>
           </li>
         ))}
